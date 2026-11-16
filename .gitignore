@@ -1,6 +1,5 @@
 # 依赖与构建缓存
 node_modules/
-/main.js
 test/out/
 test/shipped/main.js
 test/shipped/node_modules/
