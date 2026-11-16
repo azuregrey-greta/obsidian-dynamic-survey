@@ -12,6 +12,12 @@ await esbuild.build({
   alias: { obsidian: "./test/obsidian-stub.ts" },
   outfile: "test/out/unit.cjs", logLevel: "warning",
 });
+await esbuild.build({
+  entryPoints: ["test/collection.unit.ts"],
+  bundle: true, platform: "node", format: "cjs", target: "node18",
+  alias: { obsidian: "./test/obsidian-stub.ts" },
+  outfile: "test/out/collection.cjs", logLevel: "warning",
+});
 
 // 2) 浏览器测试台（源码 + 桩，IIFE）
 await esbuild.build({

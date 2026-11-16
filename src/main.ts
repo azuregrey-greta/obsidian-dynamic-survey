@@ -4,6 +4,7 @@ import { SurveyWizardModal } from "./SurveyWizardModal";
 import { SurveyFileWriter } from "./SurveyFileWriter";
 import { DynamicSurveySettingTab } from "./SettingTab";
 import { BUILT_IN_MOOD_REVIEW_ID, instantiateBuiltInTemplate } from "./BuiltInSurvey";
+import { MAX_USER_SURVEYS, countUserSurveys, generateSurveyId } from "./SurveyCollection";
 import { deepClone } from "./utils";
 
 /** 默认设置：由随插件分发的内置模板实例化而来的初始工作副本。 */
@@ -49,6 +50,28 @@ export default class DynamicSurveyPlugin extends Plugin {
     copy.id = newId; copy.name = `${source.name} 副本`; copy.enabled = true;
     this.settings.surveys.push(copy);
     return copy;
+  }
+  /** 收集一份问卷(逐步录入 / JSON 导入共用):id 去重 + 校验 + 最多 10 个(内置模板不计入)+ 持久化。 */
+  async addUserSurvey(def: SurveyDefinition): Promise<{ ok: boolean; survey?: SurveyDefinition; error?: string }> {
+    const ids = new Set(this.settings.surveys.map(s => s.id));
+    // 逐步录入/导入可能不带合法 id(问卷名常是中文),先补齐再校验。
+    if (!def.id || !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(def.id) || ids.has(def.id)) def.id = generateSurveyId(ids);
+    const errors = this.validateSurvey(def);
+    if (errors.length) return { ok: false, error: errors[0] };
+    if (countUserSurveys(this.settings.surveys) >= MAX_USER_SURVEYS) {
+      return { ok: false, error: `问卷收集已满(最多 ${MAX_USER_SURVEYS} 个,内置模板不计入)。请先删除不需要的问卷。` };
+    }
+    this.settings.surveys.push(def);
+    await this.saveSettings();
+    return { ok: true, survey: def };
+  }
+  /** 删除一份问卷(含内置模板的工作副本;出厂定义仍在,可随时恢复)。 */
+  async removeSurvey(id: string): Promise<boolean> {
+    const before = this.settings.surveys.length;
+    this.settings.surveys = this.settings.surveys.filter(s => s.id !== id);
+    if (this.settings.surveys.length === before) return false;
+    await this.saveSettings();
+    return true;
   }
   private async save(survey: SurveyDefinition, answers: SurveyAnswers): Promise<void> {
     try {

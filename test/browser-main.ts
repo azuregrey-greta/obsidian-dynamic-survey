@@ -6,6 +6,8 @@ import { installGlobalApp, Vault, noticeLog, Platform } from "./obsidian-stub";
 import DynamicSurveyPlugin from "../src/main";
 import { SurveyWizardModal } from "../src/SurveyWizardModal";
 import { DynamicSurveySettingTab } from "../src/SettingTab";
+import { openSurveyBuilder } from "../src/SurveyBuilderModal";
+import { openSurveyImport } from "../src/SurveyImportModal";
 import { deepClone } from "../src/utils";
 import { BUILT_IN_MOOD_REVIEW_ID } from "../src/BuiltInSurvey";
 
@@ -64,6 +66,8 @@ window.addEventListener("DOMContentLoaded", () => {
     plugin, vault, app, Platform, noticeLog, consoleErrors,
     runSurvey: (id: string) => { const s = plugin.settings.surveys.find(x => x.id === id); if (!s) throw new Error(`no survey: ${id}`); plugin.run(deepClone(s)); },
     openSettings,
+    openBuilder: () => openSurveyBuilder(app as never, plugin),
+    openImport: () => openSurveyImport(app as never, plugin),
     addLongSurvey,
     addTextSurvey: () => {
       plugin.settings.surveys.push({

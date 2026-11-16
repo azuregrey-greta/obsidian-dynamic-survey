@@ -157,6 +157,7 @@ if (typeof HTMLElement !== "undefined") {
     proto.createEl = function (this: HTMLElement, tag: string, o?: { cls?: string; text?: string; type?: string; attr?: Record<string, string | number> }) { return createElementHelper(this, tag, o); };
     proto.addClass = function (this: HTMLElement, c: string) { this.classList.add(c); };
     proto.removeClass = function (this: HTMLElement, c: string) { this.classList.remove(c); };
+    proto.toggleClass = function (this: HTMLElement, c: string, value?: boolean) { this.classList.toggle(c, value); };
     proto.empty = function (this: HTMLElement) { this.replaceChildren(); };
     proto.setText = function (this: HTMLElement, t: string) { this.textContent = t; };
   }

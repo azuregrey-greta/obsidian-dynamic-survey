@@ -2,14 +2,19 @@ import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import DynamicSurveyPlugin, { DEFAULT_SETTINGS } from "./main";
 import { DynamicSurveySettings } from "./types";
 import { BUILT_IN_TEMPLATES } from "./BuiltInSurvey";
+import { MAX_USER_SURVEYS, countUserSurveys, isBuiltInSurvey } from "./SurveyCollection";
+import { openSurveyBuilder } from "./SurveyBuilderModal";
+import { openSurveyImport } from "./SurveyImportModal";
 import { deepClone } from "./utils";
 
 export class DynamicSurveySettingTab extends PluginSettingTab {
+  private pendingDeleteId: string | null = null;
   constructor(app: App, private readonly plugin: DynamicSurveyPlugin) { super(app, plugin); }
   display(): void {
     this.containerEl.empty(); this.containerEl.createEl("h2", { text: "动态问卷设置" });
     this.containerEl.createEl("p", { text: "每个问卷通过 targetFolder 设置保存文件夹；笔记名默认是 {{date}} {{survey_name}}。同日重复填写默认生成 (2)、(3)。" });
     this.renderBuiltInSection();
+    this.renderCollectionSection();
     this.renderJsonEditor();
   }
 
@@ -37,6 +42,43 @@ export class DynamicSurveySettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
           this.display();
           new Notice(`已创建副本「${duplicated.name}」（id: ${duplicated.id}）。`);
+        }));
+    }
+  }
+
+  /** 问卷收集区:列表 + 逐步录入 + JSON 导入,最多 10 个(内置模板不计入)。 */
+  private renderCollectionSection(): void {
+    const section = this.containerEl.createDiv({ cls: "dynamic-survey-collection-section" });
+    const used = countUserSurveys(this.plugin.settings.surveys);
+    section.createEl("h3", { text: `问卷收集(${used}/${MAX_USER_SURVEYS})` });
+    section.createEl("p", {
+      text: "收集其他问卷:逐步录入(问题 → 回答方式 → 下一个问题),或直接粘贴 JSON 导入。最多收集 10 个,内置模板不计入。",
+      cls: "dynamic-survey-builtin-hint"
+    });
+    new Setting(section).setName("添加问卷")
+      .addButton(b => b.setButtonText("＋ 新建问卷(逐步录入)").setCta().onClick(() => openSurveyBuilder(this.app, this.plugin)))
+      .addButton(b => b.setButtonText("粘贴 JSON 导入").onClick(() => openSurveyImport(this.app, this.plugin)));
+    for (const survey of this.plugin.settings.surveys) {
+      const tag = isBuiltInSurvey(survey) ? "内置" : "收集";
+      new Setting(section)
+        .setName(survey.name)
+        .setDesc(`[${tag}] ${survey.questions.length} 题 · 保存到 ${survey.targetFolder} · ${survey.enabled === false ? "已停用" : "启用中"}`)
+        .addButton(b => b.setButtonText(survey.enabled === false ? "启用" : "停用").onClick(async () => {
+          survey.enabled = survey.enabled === false;
+          await this.plugin.saveSettings();
+          this.display();
+        }))
+        .addButton(b => b.setButtonText("删除").setWarning().onClick(async () => {
+          if (this.pendingDeleteId === survey.id) {
+            this.pendingDeleteId = null;
+            const removed = await this.plugin.removeSurvey(survey.id);
+            if (removed) new Notice(`已删除「${survey.name}」。`);
+            this.display();
+          } else {
+            this.pendingDeleteId = survey.id;
+            b.setButtonText("确认删除?");
+            window.setTimeout(() => { this.pendingDeleteId = null; b.setButtonText("删除"); }, 4000);
+          }
         }));
     }
   }
