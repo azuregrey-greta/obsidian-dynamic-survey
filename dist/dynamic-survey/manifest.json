@@ -1,0 +1,9 @@
+{
+  "id": "dynamic-survey",
+  "name": "Dynamic Survey",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Run JSON-driven immersive surveys and save each response as a dated Markdown note.",
+  "author": "Greta",
+  "isDesktopOnly": false
+}

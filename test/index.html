@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Survey 测试台（Obsidian 模拟环境）</title>
+<style>
+  /* 模拟 Obsidian 主题变量与基础样式 */
+  :root{
+    --background-primary:#ffffff;--background-secondary:#f2f3f5;--background-modifier-border:#dbdbdb;
+    --interactive-accent:#7b6cd9;--text-on-accent:#ffffff;--text-muted:#7a7a7a;--text-normal:#222222;
+    --text-error:#e04848;--font-monospace:ui-monospace,SFMono-Regular,monospace;--font-ui-small:13px;--font-ui-medium:15px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"PingFang SC","Noto Sans SC",sans-serif;background:var(--background-secondary);color:var(--text-normal)}
+  #status{padding:8px 12px;font-size:13px;color:var(--text-muted)}
+  .info{padding:0 12px;font-size:12px;color:var(--text-muted)}
+  /* Modal 容器（模拟 Obsidian modal 结构与层级） */
+  .modal-container{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35)}
+  .modal-container .modal-bg{position:absolute;inset:0}
+  .modal-container .modal{position:relative;background:var(--background-primary);border:1px solid var(--background-modifier-border);border-radius:12px;max-height:85vh;display:flex;flex-direction:column;padding:0 20px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  .modal-container .modal-title{display:none}
+  .modal-content{padding:18px 2px;overflow-y:auto}
+  body.is-phone .modal-container{align-items:flex-end}
+  body.is-phone .modal-container .modal{border-radius:16px 16px 0 0;max-height:92vh}
+  /* Notice toast（模拟 Obsidian 通知） */
+  .notice-container{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#333;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:2000;max-width:80vw}
+  /* Setting 面板基础样式 */
+  .setting-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 4px;border-bottom:1px solid var(--background-modifier-border)}
+  .setting-item-name{font-weight:600}
+  .setting-item-description{font-size:12.5px;color:var(--text-muted);white-space:pre-wrap}
+  .setting-item-control{display:flex;gap:8px}
+  button{font:inherit;cursor:pointer;padding:8px 14px;border-radius:8px;border:1px solid var(--background-modifier-border);background:var(--background-secondary);color:var(--text-normal)}
+  button.mod-cta{background:var(--interactive-accent);color:var(--text-on-accent);border-color:var(--interactive-accent)}
+  button.mod-warning{color:var(--text-error)}
+  input[type=text],textarea{font:inherit;color:var(--text-normal);background:var(--background-primary);border:1px solid var(--background-modifier-border);border-radius:8px;padding:8px 10px}
+  input[type=checkbox]{width:16px;height:16px}
+  h2,h3{margin:10px 0}
+</style>
+<link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <div id="status">loading…</div>
+  <div class="info">Obsidian API 模拟环境 — 本页面通过共享的桩模块加载插件源码，用于桌面与移动端模拟验收。</div>
+  <script src="out/browser-bundle.js"></script>
+</body>
+</html>
