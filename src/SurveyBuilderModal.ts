@@ -6,7 +6,7 @@ import { App, Modal, Notice } from "obsidian";
 import type DynamicSurveyPlugin from "./main";
 import { SurveyDraft, ANSWER_KIND_LABELS, AnswerKind, buildSurveyFromDraft } from "./SurveyCollection";
 
-export function openSurveyBuilder(app: App, plugin: DynamicSurveyPlugin): void { new SurveyBuilderModal(app, plugin).open(); }
+export function openSurveyBuilder(app: App, plugin: DynamicSurveyPlugin, onDone?: () => void): void { new SurveyBuilderModal(app, plugin, onDone).open(); }
 
 export class SurveyBuilderModal extends Modal {
   private draft: SurveyDraft = {
@@ -16,7 +16,7 @@ export class SurveyBuilderModal extends Modal {
   };
   private statusEl!: HTMLElement;
 
-  constructor(app: App, private readonly plugin: DynamicSurveyPlugin) {
+  constructor(app: App, private readonly plugin: DynamicSurveyPlugin, private readonly onDone?: () => void) {
     super(app);
     this.modalEl.addClass("dynamic-survey-modal");
   }
@@ -134,6 +134,7 @@ export class SurveyBuilderModal extends Modal {
     const result = await this.plugin.addUserSurvey(survey);
     if (!result.ok) { this.setStatus(result.error ?? "创建失败。", true); return; }
     new Notice(`已创建问卷「${result.survey!.name}」(${result.survey!.questions.length} 题)。「打开动态问卷」立即可用,专属命令需重载插件后出现。`);
+    this.onDone?.();
     this.close();
   }
 }

@@ -16,3 +16,5 @@
 .dynamic-survey-builder-add-row{margin:4px 0 8px}
 .dynamic-survey-builder-add-row button,.dynamic-survey-footer button{cursor:pointer}
 .dynamic-survey-import-editor{min-height:260px;font-family:var(--font-monospace);font-size:var(--font-ui-small)}
+.dynamic-survey-folder-input{width:230px;max-width:42vw}
+@media(max-width:480px){.dynamic-survey-folder-input{width:100%;max-width:none}}

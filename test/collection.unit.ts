@@ -147,6 +147,23 @@ test("addUserSurvey:上限 10 个,第 11 个被拒;删除后可再收集", async
   assertEquals(okAgain.ok, true, "删除后可再收集");
 });
 
+test("addUserSurvey:replaceIfIdExists 同 id 原地更新,不堆副本、不占新名额", async () => {
+  const vault = new Vault();
+  const plugin = new DynamicSurveyPlugin({ vault } as never);
+  await plugin.loadSettings();
+  const def = (n: string) => ({ id: "film_breakdown", name: n, targetFolder: "t", template: "t", questions: [{ id: "q1", label: "q", type: "text" }] } as SurveyDefinition);
+  const r1 = await plugin.addUserSurvey(def("第一版"), { replaceIfIdExists: true });
+  const r2 = await plugin.addUserSurvey(def("第二版"), { replaceIfIdExists: true });
+  assert(r1.ok && r2.ok, "两次都成功");
+  assertEquals(r2.updated, true, "第二次标记为更新");
+  assertEquals(plugin.settings.surveys.length, 2, "内置 + 1 个,不堆副本");
+  assertEquals(plugin.settings.surveys.find(s => s.id === "film_breakdown")!.name, "第二版", "内容已更新");
+  // 不带 replace 时同 id 自动重生成,正常堆积
+  const r3 = await plugin.addUserSurvey(def("第三版"));
+  assert(r3.ok && !r3.updated && r3.survey!.id !== "film_breakdown", "默认行为:冲突 id 重生成");
+  assertEquals(plugin.settings.surveys.length, 3, "默认行为堆副本");
+});
+
 test("addUserSurvey:非法问卷被校验拒绝", async () => {
   const vault = new Vault();
   const plugin = new DynamicSurveyPlugin({ vault } as never);

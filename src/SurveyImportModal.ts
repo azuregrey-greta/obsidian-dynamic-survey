@@ -7,12 +7,12 @@ import type DynamicSurveyPlugin from "./main";
 import { MAX_USER_SURVEYS, countUserSurveys, normalizeImportedSurvey, parseImportPayload } from "./SurveyCollection";
 import { SurveyDefinition } from "./types";
 
-export function openSurveyImport(app: App, plugin: DynamicSurveyPlugin): void { new SurveyImportModal(app, plugin).open(); }
+export function openSurveyImport(app: App, plugin: DynamicSurveyPlugin, onDone?: () => void): void { new SurveyImportModal(app, plugin, onDone).open(); }
 
 export class SurveyImportModal extends Modal {
   private statusEl!: HTMLElement;
 
-  constructor(app: App, private readonly plugin: DynamicSurveyPlugin) {
+  constructor(app: App, private readonly plugin: DynamicSurveyPlugin, private readonly onDone?: () => void) {
     super(app);
     this.modalEl.addClass("dynamic-survey-modal");
   }
@@ -66,14 +66,16 @@ export class SurveyImportModal extends Modal {
     }
 
     let imported = 0;
+    let updated = 0;
     const failures: string[] = [];
     for (const survey of normalized) {
-      const result = await this.plugin.addUserSurvey(survey);
-      if (result.ok) imported++;
+      const result = await this.plugin.addUserSurvey(survey, { replaceIfIdExists: true });
+      if (result.ok) { imported++; if (result.updated) updated++; }
       else failures.push(`「${survey.name}」:${result.error}`);
     }
     if (failures.length) { this.setStatus(`导入完成 ${imported} 个,失败 ${failures.length} 个:\n${failures.join("\n")}`, true); return; }
-    new Notice(`已导入 ${imported} 个问卷。「打开动态问卷」立即可用,专属命令需重载插件后出现。`);
+    new Notice(updated > 0 ? `已导入 ${imported} 个问卷(其中 ${updated} 个为更新已有问卷)。` : `已导入 ${imported} 个问卷。「打开动态问卷」立即可用,专属命令需重载插件后出现。`);
+    this.onDone?.();
     this.close();
   }
 }

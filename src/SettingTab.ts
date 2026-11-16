@@ -56,18 +56,32 @@ export class DynamicSurveySettingTab extends PluginSettingTab {
       cls: "dynamic-survey-builtin-hint"
     });
     new Setting(section).setName("添加问卷")
-      .addButton(b => b.setButtonText("＋ 新建问卷(逐步录入)").setCta().onClick(() => openSurveyBuilder(this.app, this.plugin)))
-      .addButton(b => b.setButtonText("粘贴 JSON 导入").onClick(() => openSurveyImport(this.app, this.plugin)));
+      .addButton(b => b.setButtonText("＋ 新建问卷(逐步录入)").setCta().onClick(() => openSurveyBuilder(this.app, this.plugin, () => this.display())))
+      .addButton(b => b.setButtonText("粘贴 JSON 导入").onClick(() => openSurveyImport(this.app, this.plugin, () => this.display())));
     for (const survey of this.plugin.settings.surveys) {
       const tag = isBuiltInSurvey(survey) ? "内置" : "收集";
-      new Setting(section)
+      const row = new Setting(section)
         .setName(survey.name)
-        .setDesc(`[${tag}] ${survey.questions.length} 题 · 保存到 ${survey.targetFolder} · ${survey.enabled === false ? "已停用" : "启用中"}`)
-        .addButton(b => b.setButtonText(survey.enabled === false ? "启用" : "停用").onClick(async () => {
-          survey.enabled = survey.enabled === false;
-          await this.plugin.saveSettings();
-          this.display();
-        }))
+        .setDesc(`[${tag}] ${survey.questions.length} 题 · ${survey.enabled === false ? "已停用" : "启用中"}`);
+      // 保存位置填入框:改完自动生效
+      const folderInput = row.controlEl.createEl("input", {
+        type: "text",
+        cls: "dynamic-survey-folder-input",
+        attr: { placeholder: "保存位置,例如:08 日记/01 问心日记", "aria-label": `${survey.name} 保存位置` }
+      });
+      folderInput.value = survey.targetFolder;
+      folderInput.addEventListener("change", async () => {
+        const next = folderInput.value.trim();
+        if (!next || next === survey.targetFolder) { folderInput.value = survey.targetFolder; return; }
+        survey.targetFolder = next;
+        await this.plugin.saveSettings();
+        new Notice(`「${survey.name}」保存位置已更新:${next}`);
+      });
+      row.addButton(b => b.setButtonText(survey.enabled === false ? "启用" : "停用").onClick(async () => {
+        survey.enabled = survey.enabled === false;
+        await this.plugin.saveSettings();
+        this.display();
+      }))
         .addButton(b => b.setButtonText("删除").setWarning().onClick(async () => {
           if (this.pendingDeleteId === survey.id) {
             this.pendingDeleteId = null;

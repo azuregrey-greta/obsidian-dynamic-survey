@@ -15,6 +15,8 @@ export default class DynamicSurveyPlugin extends Plugin {
   private writer!: SurveyFileWriter;
   async onload(): Promise<void> {
     await this.loadSettings(); this.writer = new SurveyFileWriter(this.app); this.addSettingTab(new DynamicSurveySettingTab(this.app, this));
+    // 左侧栏小图标:点击打开问卷选择器
+    this.addRibbonIcon("clipboard-list", "打开动态问卷", () => new SurveyPicker(this, this.enabled()).open());
     this.addCommand({ id: "open-survey-picker", name: "打开动态问卷", callback: () => new SurveyPicker(this, this.enabled()).open() });
     const seen = new Set<string>();
     for (const survey of this.enabled()) {
@@ -51,19 +53,31 @@ export default class DynamicSurveyPlugin extends Plugin {
     this.settings.surveys.push(copy);
     return copy;
   }
-  /** 收集一份问卷(逐步录入 / JSON 导入共用):id 去重 + 校验 + 最多 10 个(内置模板不计入)+ 持久化。 */
-  async addUserSurvey(def: SurveyDefinition): Promise<{ ok: boolean; survey?: SurveyDefinition; error?: string }> {
+  /**
+   * 收集一份问卷(逐步录入 / JSON 导入共用)。
+   * replaceIfIdExists=true 时(JSON 导入),同 id 的问卷原地更新,不堆副本;
+   * 否则 id 冲突时自动重生成。上限 10 个仅对"新增"生效(内置模板不计入)。
+   */
+  async addUserSurvey(def: SurveyDefinition, opts?: { replaceIfIdExists?: boolean }): Promise<{ ok: boolean; survey?: SurveyDefinition; updated?: boolean; error?: string }> {
     const ids = new Set(this.settings.surveys.map(s => s.id));
-    // 逐步录入/导入可能不带合法 id(问卷名常是中文),先补齐再校验。
-    if (!def.id || !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(def.id) || ids.has(def.id)) def.id = generateSurveyId(ids);
+    const replace = opts?.replaceIfIdExists === true && !!def.id && ids.has(def.id);
+    if (!replace) {
+      // 逐步录入/导入可能不带合法 id(问卷名常是中文),先补齐再校验。
+      if (!def.id || !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(def.id) || ids.has(def.id)) def.id = generateSurveyId(ids);
+    }
     const errors = this.validateSurvey(def);
     if (errors.length) return { ok: false, error: errors[0] };
-    if (countUserSurveys(this.settings.surveys) >= MAX_USER_SURVEYS) {
+    if (!replace && countUserSurveys(this.settings.surveys) >= MAX_USER_SURVEYS) {
       return { ok: false, error: `问卷收集已满(最多 ${MAX_USER_SURVEYS} 个,内置模板不计入)。请先删除不需要的问卷。` };
     }
-    this.settings.surveys.push(def);
+    if (replace) {
+      const index = this.settings.surveys.findIndex(s => s.id === def.id);
+      this.settings.surveys[index] = def;
+    } else {
+      this.settings.surveys.push(def);
+    }
     await this.saveSettings();
-    return { ok: true, survey: def };
+    return { ok: true, survey: def, updated: replace };
   }
   /** 删除一份问卷(含内置模板的工作副本;出厂定义仍在,可随时恢复)。 */
   async removeSurvey(id: string): Promise<boolean> {

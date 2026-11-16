@@ -262,7 +262,12 @@ export class Plugin implements Component {
   private _data: unknown = null;
   addCommand(cmd: CommandLike): CommandLike { this.commands.push(cmd); return cmd; }
   addSettingTab(tab: PluginSettingTab): void { this.settingTabs.push(tab); }
-  addRibbonIcon(): unknown { return null; }
+  addRibbonIcon(icon: string, tooltip: string, cb: () => void): unknown {
+    const self = this as unknown as { ribbons?: Array<{ icon: string; tooltip: string }> };
+    self.ribbons = self.ribbons ?? [];
+    self.ribbons.push({ icon, tooltip });
+    return {};
+  }
   registerEvent(_ref: EventRef): void {}
   registerDomEvent(): void {}
   registerInterval(id: number): number { return id; }

@@ -301,6 +301,9 @@ test("onload：注册选择器命令与每个启用问卷的专属命令", async
   const cmds = (plugin as unknown as { commands: Array<{ id: string }> }).commands;
   assert(cmds.some(c => c.id === "open-survey-picker"), "选择器命令");
   assert(cmds.some(c => c.id === "run-survey-mood_review"), `内置问卷专属命令，实际 ${JSON.stringify(cmds)}`);
+  const ribbons = (plugin as unknown as { ribbons?: Array<{ icon: string; tooltip: string }> }).ribbons ?? [];
+  assert(ribbons.length === 1 && ribbons[0].icon === "clipboard-list", `左侧栏 ribbon 图标，实际 ${JSON.stringify(ribbons)}`);
+  assert(ribbons[0]?.tooltip === "打开动态问卷", "ribbon 悬停提示");
 });
 
 test("enabled() 过滤停用问卷", async () => {

@@ -448,13 +448,14 @@ function normalizeImportedSurvey(raw, existingIds) {
 
 // src/SurveyBuilderModal.ts
 var import_obsidian3 = require("obsidian");
-function openSurveyBuilder(app, plugin) {
-  new SurveyBuilderModal(app, plugin).open();
+function openSurveyBuilder(app, plugin, onDone) {
+  new SurveyBuilderModal(app, plugin, onDone).open();
 }
 var SurveyBuilderModal = class extends import_obsidian3.Modal {
-  constructor(app, plugin) {
+  constructor(app, plugin, onDone) {
     super(app);
     this.plugin = plugin;
+    this.onDone = onDone;
     this.draft = {
       name: "",
       folder: "\u95EE\u5377\u6536\u96C6",
@@ -585,7 +586,7 @@ var SurveyBuilderModal = class extends import_obsidian3.Modal {
     });
   }
   async submit() {
-    var _a;
+    var _a, _b;
     const { survey, errors } = buildSurveyFromDraft(this.draft);
     if (errors.length || !survey) {
       this.setStatus(errors.join("\n"), true);
@@ -597,19 +598,21 @@ var SurveyBuilderModal = class extends import_obsidian3.Modal {
       return;
     }
     new import_obsidian3.Notice(`\u5DF2\u521B\u5EFA\u95EE\u5377\u300C${result.survey.name}\u300D(${result.survey.questions.length} \u9898)\u3002\u300C\u6253\u5F00\u52A8\u6001\u95EE\u5377\u300D\u7ACB\u5373\u53EF\u7528,\u4E13\u5C5E\u547D\u4EE4\u9700\u91CD\u8F7D\u63D2\u4EF6\u540E\u51FA\u73B0\u3002`);
+    (_b = this.onDone) == null ? void 0 : _b.call(this);
     this.close();
   }
 };
 
 // src/SurveyImportModal.ts
 var import_obsidian4 = require("obsidian");
-function openSurveyImport(app, plugin) {
-  new SurveyImportModal(app, plugin).open();
+function openSurveyImport(app, plugin, onDone) {
+  new SurveyImportModal(app, plugin, onDone).open();
 }
 var SurveyImportModal = class extends import_obsidian4.Modal {
-  constructor(app, plugin) {
+  constructor(app, plugin, onDone) {
     super(app);
     this.plugin = plugin;
+    this.onDone = onDone;
     this.modalEl.addClass("dynamic-survey-modal");
   }
   onOpen() {
@@ -643,7 +646,7 @@ var SurveyImportModal = class extends import_obsidian4.Modal {
     submit.addEventListener("click", () => void this.submit(textarea.value));
   }
   async submit(text) {
-    var _a, _b;
+    var _a, _b, _c;
     const payload = parseImportPayload(text);
     if (payload.error || !payload.surveys) {
       this.setStatus((_a = payload.error) != null ? _a : "\u65E0\u6CD5\u89E3\u6790\u3002", true);
@@ -668,18 +671,22 @@ var SurveyImportModal = class extends import_obsidian4.Modal {
       return;
     }
     let imported = 0;
+    let updated = 0;
     const failures = [];
     for (const survey of normalized) {
-      const result = await this.plugin.addUserSurvey(survey);
-      if (result.ok) imported++;
-      else failures.push(`\u300C${survey.name}\u300D:${result.error}`);
+      const result = await this.plugin.addUserSurvey(survey, { replaceIfIdExists: true });
+      if (result.ok) {
+        imported++;
+        if (result.updated) updated++;
+      } else failures.push(`\u300C${survey.name}\u300D:${result.error}`);
     }
     if (failures.length) {
       this.setStatus(`\u5BFC\u5165\u5B8C\u6210 ${imported} \u4E2A,\u5931\u8D25 ${failures.length} \u4E2A:
 ${failures.join("\n")}`, true);
       return;
     }
-    new import_obsidian4.Notice(`\u5DF2\u5BFC\u5165 ${imported} \u4E2A\u95EE\u5377\u3002\u300C\u6253\u5F00\u52A8\u6001\u95EE\u5377\u300D\u7ACB\u5373\u53EF\u7528,\u4E13\u5C5E\u547D\u4EE4\u9700\u91CD\u8F7D\u63D2\u4EF6\u540E\u51FA\u73B0\u3002`);
+    new import_obsidian4.Notice(updated > 0 ? `\u5DF2\u5BFC\u5165 ${imported} \u4E2A\u95EE\u5377(\u5176\u4E2D ${updated} \u4E2A\u4E3A\u66F4\u65B0\u5DF2\u6709\u95EE\u5377)\u3002` : `\u5DF2\u5BFC\u5165 ${imported} \u4E2A\u95EE\u5377\u3002\u300C\u6253\u5F00\u52A8\u6001\u95EE\u5377\u300D\u7ACB\u5373\u53EF\u7528,\u4E13\u5C5E\u547D\u4EE4\u9700\u91CD\u8F7D\u63D2\u4EF6\u540E\u51FA\u73B0\u3002`);
+    (_c = this.onDone) == null ? void 0 : _c.call(this);
     this.close();
   }
 };
@@ -738,10 +745,27 @@ var DynamicSurveySettingTab = class extends import_obsidian5.PluginSettingTab {
       text: "\u6536\u96C6\u5176\u4ED6\u95EE\u5377:\u9010\u6B65\u5F55\u5165(\u95EE\u9898 \u2192 \u56DE\u7B54\u65B9\u5F0F \u2192 \u4E0B\u4E00\u4E2A\u95EE\u9898),\u6216\u76F4\u63A5\u7C98\u8D34 JSON \u5BFC\u5165\u3002\u6700\u591A\u6536\u96C6 10 \u4E2A,\u5185\u7F6E\u6A21\u677F\u4E0D\u8BA1\u5165\u3002",
       cls: "dynamic-survey-builtin-hint"
     });
-    new import_obsidian5.Setting(section).setName("\u6DFB\u52A0\u95EE\u5377").addButton((b) => b.setButtonText("\uFF0B \u65B0\u5EFA\u95EE\u5377(\u9010\u6B65\u5F55\u5165)").setCta().onClick(() => openSurveyBuilder(this.app, this.plugin))).addButton((b) => b.setButtonText("\u7C98\u8D34 JSON \u5BFC\u5165").onClick(() => openSurveyImport(this.app, this.plugin)));
+    new import_obsidian5.Setting(section).setName("\u6DFB\u52A0\u95EE\u5377").addButton((b) => b.setButtonText("\uFF0B \u65B0\u5EFA\u95EE\u5377(\u9010\u6B65\u5F55\u5165)").setCta().onClick(() => openSurveyBuilder(this.app, this.plugin, () => this.display()))).addButton((b) => b.setButtonText("\u7C98\u8D34 JSON \u5BFC\u5165").onClick(() => openSurveyImport(this.app, this.plugin, () => this.display())));
     for (const survey of this.plugin.settings.surveys) {
       const tag = isBuiltInSurvey(survey) ? "\u5185\u7F6E" : "\u6536\u96C6";
-      new import_obsidian5.Setting(section).setName(survey.name).setDesc(`[${tag}] ${survey.questions.length} \u9898 \xB7 \u4FDD\u5B58\u5230 ${survey.targetFolder} \xB7 ${survey.enabled === false ? "\u5DF2\u505C\u7528" : "\u542F\u7528\u4E2D"}`).addButton((b) => b.setButtonText(survey.enabled === false ? "\u542F\u7528" : "\u505C\u7528").onClick(async () => {
+      const row = new import_obsidian5.Setting(section).setName(survey.name).setDesc(`[${tag}] ${survey.questions.length} \u9898 \xB7 ${survey.enabled === false ? "\u5DF2\u505C\u7528" : "\u542F\u7528\u4E2D"}`);
+      const folderInput = row.controlEl.createEl("input", {
+        type: "text",
+        cls: "dynamic-survey-folder-input",
+        attr: { placeholder: "\u4FDD\u5B58\u4F4D\u7F6E,\u4F8B\u5982:08 \u65E5\u8BB0/01 \u95EE\u5FC3\u65E5\u8BB0", "aria-label": `${survey.name} \u4FDD\u5B58\u4F4D\u7F6E` }
+      });
+      folderInput.value = survey.targetFolder;
+      folderInput.addEventListener("change", async () => {
+        const next = folderInput.value.trim();
+        if (!next || next === survey.targetFolder) {
+          folderInput.value = survey.targetFolder;
+          return;
+        }
+        survey.targetFolder = next;
+        await this.plugin.saveSettings();
+        new import_obsidian5.Notice(`\u300C${survey.name}\u300D\u4FDD\u5B58\u4F4D\u7F6E\u5DF2\u66F4\u65B0:${next}`);
+      });
+      row.addButton((b) => b.setButtonText(survey.enabled === false ? "\u542F\u7528" : "\u505C\u7528").onClick(async () => {
         survey.enabled = survey.enabled === false;
         await this.plugin.saveSettings();
         this.display();
@@ -816,6 +840,7 @@ var DynamicSurveyPlugin2 = class extends import_obsidian6.Plugin {
     await this.loadSettings();
     this.writer = new SurveyFileWriter(this.app);
     this.addSettingTab(new DynamicSurveySettingTab(this.app, this));
+    this.addRibbonIcon("clipboard-list", "\u6253\u5F00\u52A8\u6001\u95EE\u5377", () => new SurveyPicker(this, this.enabled()).open());
     this.addCommand({ id: "open-survey-picker", name: "\u6253\u5F00\u52A8\u6001\u95EE\u5377", callback: () => new SurveyPicker(this, this.enabled()).open() });
     const seen = /* @__PURE__ */ new Set();
     for (const survey of this.enabled()) {
@@ -862,18 +887,30 @@ var DynamicSurveyPlugin2 = class extends import_obsidian6.Plugin {
     this.settings.surveys.push(copy);
     return copy;
   }
-  /** 收集一份问卷(逐步录入 / JSON 导入共用):id 去重 + 校验 + 最多 10 个(内置模板不计入)+ 持久化。 */
-  async addUserSurvey(def) {
+  /**
+   * 收集一份问卷(逐步录入 / JSON 导入共用)。
+   * replaceIfIdExists=true 时(JSON 导入),同 id 的问卷原地更新,不堆副本;
+   * 否则 id 冲突时自动重生成。上限 10 个仅对"新增"生效(内置模板不计入)。
+   */
+  async addUserSurvey(def, opts) {
     const ids = new Set(this.settings.surveys.map((s) => s.id));
-    if (!def.id || !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(def.id) || ids.has(def.id)) def.id = generateSurveyId(ids);
+    const replace = (opts == null ? void 0 : opts.replaceIfIdExists) === true && !!def.id && ids.has(def.id);
+    if (!replace) {
+      if (!def.id || !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(def.id) || ids.has(def.id)) def.id = generateSurveyId(ids);
+    }
     const errors = this.validateSurvey(def);
     if (errors.length) return { ok: false, error: errors[0] };
-    if (countUserSurveys(this.settings.surveys) >= MAX_USER_SURVEYS) {
+    if (!replace && countUserSurveys(this.settings.surveys) >= MAX_USER_SURVEYS) {
       return { ok: false, error: `\u95EE\u5377\u6536\u96C6\u5DF2\u6EE1(\u6700\u591A ${MAX_USER_SURVEYS} \u4E2A,\u5185\u7F6E\u6A21\u677F\u4E0D\u8BA1\u5165)\u3002\u8BF7\u5148\u5220\u9664\u4E0D\u9700\u8981\u7684\u95EE\u5377\u3002` };
     }
-    this.settings.surveys.push(def);
+    if (replace) {
+      const index = this.settings.surveys.findIndex((s) => s.id === def.id);
+      this.settings.surveys[index] = def;
+    } else {
+      this.settings.surveys.push(def);
+    }
     await this.saveSettings();
-    return { ok: true, survey: def };
+    return { ok: true, survey: def, updated: replace };
   }
   /** 删除一份问卷(含内置模板的工作副本;出厂定义仍在,可随时恢复)。 */
   async removeSurvey(id) {

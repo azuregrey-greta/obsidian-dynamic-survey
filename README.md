@@ -1,6 +1,8 @@
 # Dynamic Survey for Obsidian
 
 ## 功能
+- 左侧栏小图标（clipboard-list）：点击直接打开问卷选择器
+- 问卷收集列表每行有「保存位置」填入框，改完立即生效
 - JSON 驱动的步进式问卷（single / multiple / text / textarea）
 - 每份问卷单独设置 `targetFolder`
 - 默认笔记名：`{{date}} {{survey_name}}.md`
